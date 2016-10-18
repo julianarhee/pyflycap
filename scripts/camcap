@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# PYOPENCL_CTX=2
+
+export PYRO_SERIALIZER=pickle
+export PYRO_SERIALIZERS_ACCEPTED=pickle
+
+
+# Find a random open port to which to attach the Pyro nameserver
+# this is advantageous so that we don't have to wait around for the
+# the port to be released after closing
+
+port=$RANDOM
+quit=0
+
+while [ "$quit" -ne 1 ]; do
+  netstat -a | grep $port >> /dev/null
+  if [ $? -gt 0 ]; then
+    quit=1
+  else
+    port=`expr $port + 1`
+  fi
+done
+
+
+LAUNCH_NS="python -Wignore -m Pyro4.naming --port=$port"
+echo "Launching Pyro name server..."
+echo ${LAUNCH_NS}
+eval ${LAUNCH_NS} &
+
+echo "Starting capture engine"
+ENGINE="camcap_engine $port" # 2> /dev/null"
+eval ${ENGINE} &
+
+
+echo "Starting GUI"
+GUI="camcap_gui $port"
+eval ${GUI}
+
+echo "Done."
+
+NS_PID=`ps ax | grep -e "Pyro4.naming" | grep -v grep | awk '{print $1}'`
+ENGINE_PID=`ps ax | grep -e "${ENGINE}" | grep -v grep | awk '{print $1}'`
+
+echo "Killing launched background processes."
+kill $NS_PID
+kill $ENGINE_PID

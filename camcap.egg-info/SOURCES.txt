@@ -1,0 +1,10 @@
+camcap/__init__.py
+camcap.egg-info/PKG-INFO
+camcap.egg-info/SOURCES.txt
+camcap.egg-info/dependency_links.txt
+camcap.egg-info/top_level.txt
+camcap/gui/__init__.py
+camcap/gui/tracker_view.py
+scripts/camcap
+scripts/camcap_engine
+scripts/camcap_gui

@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+import Pyro4
+from camcap.gui import CaptureGUI
+from threading import Thread
+import sys
+import logging
+import time
+
+def main():
+
+    port = int(sys.argv[1])
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+
+    n_retries = 10
+    retry_wait = 0.5
+
+    ns = None
+    for i in range(0, n_retries):
+        try:
+            ns = Pyro4.locateNS(port=port)
+            break
+        except Pyro4.errors.NamingError:
+            # retry
+            logging.info('Looking for name server...')
+            time.sleep(retry_wait)
+
+    if ns is None:
+        logging.error('Unable to connect to name server...')
+        exit(0)
+
+    pyro_uri = None
+    for i in range(0, n_retries):
+        try:
+            pyro_uri = ns.lookup('org.coxlab.camera_capture.controller')
+            break
+        except Pyro4.errors.NamingError:
+            # retry
+            logging.info('Looking for capture controller...')
+            time.sleep(retry_wait)
+
+    if pyro_uri is None:
+        logging.error('Unable to find camera controller process')
+        exit(0)
+
+    controller = Pyro4.Proxy(pyro_uri)
+
+    gui = CaptureGUI(controller)
+
+    gui.mainloop()
+
+
+if __name__ == '__main__':
+    main()

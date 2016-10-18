@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from camcap.controller import CaptureController
+from camcap.gui import CaptureGUI
+import os
+import logging
+import sys
+import uuid
+import time
+
+use_pyro = True
+
+def main():
+
+    port = int(sys.argv[1])
+
+    os.environ['CFLAGS'] = '-arch x86_64'
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    controller = CaptureController()
+    logging.info('Finished instantiating camera controller')
+
+    if use_pyro:
+        import Pyro4
+        Pyro4.config.SERIALIZER = 'pickle'
+        Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+
+        domain_socket = str(uuid.uuid1())
+
+        daemon = Pyro4.Daemon(unixsocket=domain_socket)
+        controller_uri = daemon.register(controller, domain_socket)
+
+        n_retries = 10
+        retry_wait = 0.5
+        ns = None
+
+        for i in range(0, n_retries):
+            try:
+                ns = Pyro4.locateNS(port=port)
+                break
+            except Pyro4.errors.NamingError:
+                # retry
+                logging.info('Looking for name server...')
+                time.sleep(retry_wait)
+
+        if ns is None:
+            logging.error('Unable to connect to name server...')
+            exit(0)
+
+
+        logging.info('Registering engine with Pyro name server...')
+        ns.register('org.coxlab.camera_capture.controller', controller_uri)
+
+
+        controller.initialize()
+
+        daemon.requestLoop()
+    else:
+        gui = CaptureGUI(controller)
+        gui.mainloop()
+
+
+if __name__ == '__main__':
+    main()
